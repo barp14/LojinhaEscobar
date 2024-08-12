@@ -1,17 +1,21 @@
 package org.BancoDeDados;
 
 import Entidades.Produto;
-import Util.Util;
+import Persistencia.VendaPersistencia;
+import UtilFolder.Util;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import org.bson.Document;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
+import static com.mongodb.client.model.Filters.eq;
+
 public class BancoDeDados {
   private MongoDatabase database;
-  private MongoCollection<Document> collection;
-
+  private static MongoCollection<Document> collection;
 
   public BancoDeDados() {
     // String de conexão ao MongoDB
@@ -28,24 +32,64 @@ public class BancoDeDados {
         .append("preco", produto.getPreco())
         .append("qtdEstoque", produto.getQtdEstoque());
     collection.insertOne(doc);
-    System.out.println("Produto inserido com sucesso! ");
+    System.out.println("\nProduto inserido com sucesso! ");
+    UtilFolder.Util.linha();
   }
 
-  /* public Produto buscarProdutoPorCodigo(String codigo) {
+  public static Produto buscarProdutoPorCodigo(String codigo) {
     Document doc = collection.find(eq("codigo", codigo)).first();
     if (doc != null) {
-      return new Produto(
-          doc.getString("codigo"),
-          doc.getString("nome"),
-          doc.getDouble("preco").floatValue(),
-          doc.getInteger("qtdEstoque")
-      );
+
+        String nome = doc.getString("\nnome");
+        Double preco = doc.getDouble("preco");
+        Integer qtdEstoque = doc.getInteger("qtdEstoque");
+
+        System.out.println("Nome: " + nome);
+        System.out.println("Preço: R$" + preco);
+        System.out.println("Quantidade em estoque: " + qtdEstoque);
+        UtilFolder.Util.linha();
+      return null;
     } else {
       System.out.println("Produto não encontrado.");
+      UtilFolder.Util.linha();
       return null;
     }
   }
 
+  public void exibirProdutos() {
+    for (Document doc : collection.find()) {
+
+      String codigo = doc.getString("codigo");
+      String nome = doc.getString("nome");
+      Double preco = doc.getDouble("preco");
+      Integer qtdEstoque = doc.getInteger("qtdEstoque");
+
+      System.out.println("\nCódigo: " + codigo);
+      System.out.println("Nome: " + nome);
+      System.out.println("Preço: R$" + preco);
+      System.out.println("Quantidade em estoque: " + qtdEstoque);
+      Util.linha();
+    }
+  }
+
+  public static void calcularValorTotal(String codigo) {
+    Document doc = collection.find(eq("codigo", codigo)).first();
+    if (doc != null) {
+
+      Double preco = doc.getDouble("preco");
+      Integer qtdEstoque = doc.getInteger("qtdEstoque");
+
+      Float valorTotal = (float) (preco * qtdEstoque);
+
+      System.out.println("\nValor total desse produto em estoque: R$" + valorTotal);
+      UtilFolder.Util.linha();
+    } else {
+      System.out.println("\nProduto não encontrado.");
+      UtilFolder.Util.linha();
+    }
+  }
+
+    /*
   public void atualizarProduto(String codigo, float novoPreco) {
     Document updateDoc = new Document("$set", new Document("preco", novoPreco));
     collection.updateOne(eq("codigo", codigo), updateDoc);
@@ -58,19 +102,29 @@ public class BancoDeDados {
   }
   */
 
-  public void exibirProdutos() {
-    for (Document doc : collection.find()) {
+  public static void venderProduto(String codigo, int qtdCompra){
+    Document doc = collection.find(eq("codigo", codigo)).first();
 
-      String codigo = doc.getString("codigo");
-      String nome = doc.getString("nome");
-      Double preco = doc.getDouble("preco");
-      Integer qtdEstoque = doc.getInteger("qtdEstoque");
+    if (doc != null) {
 
-      System.out.println("Código: " + codigo);
-      System.out.println("Nome: " + nome);
-      System.out.println("Preço: " + preco);
-      System.out.println("Quantidade em estoque: " + qtdEstoque);
-      Util.linha();
+      int qtdEstoqueAtual = doc.getInteger("qtdEstoque");
+
+      if (qtdEstoqueAtual >= qtdCompra) {
+        collection.updateOne(Filters.eq("codigo", codigo),
+            Updates.set("qtdEstoque", qtdEstoqueAtual - qtdCompra));
+
+        System.out.println("\nVenda realizada com sucesso!");
+        System.out.println("\nQuantidade em estoque: " + (qtdEstoqueAtual - qtdCompra)); // qtdEstoque está atualizando no banco mas não no console
+
+        VendaPersistencia.novaVenda();
+        UtilFolder.Util.linha();
+      } else {
+        System.out.println("\nEstoque insuficiente para a venda.");
+        UtilFolder.Util.linha();
+      }
+    } else {
+      System.out.println("\nProduto não encontrado.");
+      UtilFolder.Util.linha();
     }
   }
 }
